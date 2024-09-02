@@ -130,6 +130,18 @@ async function openDBF(path: string, opts?: OpenOptions): Promise<DBFFile> {
                 memoPath = undefined;
             }
         }
+        // FoxPro 2.x with memo has the same logic as FoxPro 9
+        if (fileVersion === 0xf5) {
+            const dbExt = extname(path).toLowerCase();
+            const memoExt = dbExt == '.dbf' ? '.fpt' : `.${dbExt.substr(1,2)}t`;
+            for (const ext of [memoExt, memoExt.toUpperCase()]) {
+                memoPath = path.slice(0, -extname(path).length) + ext;
+                let foundMemoFile = await stat(memoPath).catch(() => 'missing') !== 'missing';
+                if (foundMemoFile) break;
+                memoPath = undefined;
+            }
+        }
+
 
         // Parse and validate all field descriptors. Skip validation if reading in 'loose' mode.
         let fields: FieldDescriptor[] = [];
@@ -288,6 +300,11 @@ async function readRecordsFromDBF(dbf: DBFFile, maxCount: number) {
             memoFd = await open(dbf._memoPath, 'r');
             if (dbf._version === 0x30) {
                 // VFP9 
+                await read(memoFd, buffer, 0, 2, 6);
+                memoBlockSize = buffer.readUInt16BE(0) || 512;
+            }
+            else if (dbf._version === 0xf5) {
+                // FoxPro 2.x with memo
                 await read(memoFd, buffer, 0, 2, 6);
                 memoBlockSize = buffer.readUInt16BE(0) || 512;
             }
@@ -475,8 +492,8 @@ async function readRecordsFromDBF(dbf: DBFFile, maxCount: number) {
                                     }
                                 }
 
-                                // Handle first/next block of FoxPro9 memo data.
-                                else if (dbf._version === 0x30) {
+                                // Handle first/next block of FoxPro9 memo or FoxPro 2.x memo data.
+                                else if (dbf._version === 0x30 || dbf._version === 0xf5) {
                                     // Memo header
                                     // 00 - 03: Next free block
                                     // 04 - 05: Not used
