@@ -2,7 +2,7 @@
 
 ### Summary
 
-Read and write .dbf (dBase III and Visual FoxPro) files in Node.js:
+Read and write .dbf (dBase III, dBase IV, FoxPro and Visual FoxPro) files in Node.js:
 
 - Supported field types:
   - `C` (string)
@@ -16,7 +16,7 @@ Read and write .dbf (dBase III and Visual FoxPro) files in Node.js:
   - `B` (double)
   - `M` (memo) Note: memo support is experimental/partial, with the following limitations:
     - read-only (can't create/write DBF files with memo fields)
-    - can only read dBase III (version 0x83), dBase IV (version 0x8b), VFP9 (version 0x30) and FoxPro 2.x (version 0xf5) memo files
+    - supports dBase III (version 0x83), dBase IV (version 0x8b), VFP9 (version 0x30) and FoxPro 2 (version 0xf5) memo files
 - 'Loose' read mode - tries to read any kind of .dbf file without complaining. Unsupported field types are simply skipped.
 - Can open an existing .dbf file
   - Can access all field descriptors
