@@ -3,7 +3,7 @@ export type FileVersion =
     | 0x83 // dBase III with memo file
     | 0x8b // dBase IV with memo file
     | 0x30 // Visual FoxPro 9 (may have memo file)
-    | 0xf5; // FoxPro 2.x (may have memo file)
+    | 0xf5 // FoxPro 2.x (may have memo file)
 ;
 
 

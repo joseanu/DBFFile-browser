@@ -118,30 +118,19 @@ async function openDBF(path: string, opts?: OpenOptions): Promise<DBFFile> {
                 throw new Error(`Memo file not found for file '${path}'.`);
             }
         }
-        // Locate FoxPro9 memo file, if any. Version 0x30 may or may not have a memo file.
-        // Conventions for memo extensions: .dbf => .fpt | .pjx => .pjt | .scx => .sct | .vcx => .vct | .frx => .frt ...
-        if (fileVersion === 0x30) {
-            const dbExt = extname(path).toLowerCase();
-            const memoExt = dbExt == '.dbf' ? '.fpt' : `.${dbExt.substr(1,2)}t`;
-            for (const ext of [memoExt, memoExt.toUpperCase()]) {
-                memoPath = path.slice(0, -extname(path).length) + ext;
-                let foundMemoFile = await stat(memoPath).catch(() => 'missing') !== 'missing';
-                if (foundMemoFile) break;
-                memoPath = undefined;
-            }
-        }
-        // FoxPro 2.x with memo has the same logic as FoxPro 9
-        if (fileVersion === 0xf5) {
-            const dbExt = extname(path).toLowerCase();
-            const memoExt = dbExt == '.dbf' ? '.fpt' : `.${dbExt.substr(1,2)}t`;
-            for (const ext of [memoExt, memoExt.toUpperCase()]) {
-                memoPath = path.slice(0, -extname(path).length) + ext;
-                let foundMemoFile = await stat(memoPath).catch(() => 'missing') !== 'missing';
-                if (foundMemoFile) break;
-                memoPath = undefined;
-            }
-        }
 
+        // Locate VFP9 or FoxPro 2 memo file, if any. Version 0x30 and 0xf5 may or may not have a memo file.
+        // Conventions for memo extensions: .dbf => .fpt | .pjx => .pjt | .scx => .sct | .vcx => .vct | .frx => .frt ...
+        if (fileVersion === 0x30 || fileVersion === 0xf5) {
+            const dbExt = extname(path).toLowerCase();
+            const memoExt = dbExt == '.dbf' ? '.fpt' : `.${dbExt.substr(1,2)}t`;
+            for (const ext of [memoExt, memoExt.toUpperCase()]) {
+                memoPath = path.slice(0, -extname(path).length) + ext;
+                let foundMemoFile = await stat(memoPath).catch(() => 'missing') !== 'missing';
+                if (foundMemoFile) break;
+                memoPath = undefined;
+            }
+        }
 
         // Parse and validate all field descriptors. Skip validation if reading in 'loose' mode.
         let fields: FieldDescriptor[] = [];
@@ -291,20 +280,15 @@ async function readRecordsFromDBF(dbf: DBFFile, maxCount: number) {
 
         // If there is a memo file, open it and get the block size. Also get the total file size for overflow checking.
         // The code below assumes the block size is at offset 4 in the .dbt for dBase IV files, and defaults to 512 if
-        // all zeros. For dBase III files, the block size is always 512 bytes. For VFP9 the block size is at offset 6.
+        // all zeros. For dBase III files, the block size is always 512 bytes. For FoxPro the block size is at offset 6.
         // VFP9 memos can have a block size of 1, a special case where each block is sized to fit its value.
         let memoBlockSize = 0;
         let memoFileSize = 0;
         let memoBuf: Buffer | undefined;
         if (dbf._memoPath) {
             memoFd = await open(dbf._memoPath, 'r');
-            if (dbf._version === 0x30) {
-                // VFP9 
-                await read(memoFd, buffer, 0, 2, 6);
-                memoBlockSize = buffer.readUInt16BE(0) || 512;
-            }
-            else if (dbf._version === 0xf5) {
-                // FoxPro 2.x with memo
+            if (dbf._version === 0x30 || dbf._version === 0xf5) {
+                // VFP9 or FoxPro 2
                 await read(memoFd, buffer, 0, 2, 6);
                 memoBlockSize = buffer.readUInt16BE(0) || 512;
             }
@@ -492,7 +476,7 @@ async function readRecordsFromDBF(dbf: DBFFile, maxCount: number) {
                                     }
                                 }
 
-                                // Handle first/next block of FoxPro9 memo or FoxPro 2.x memo data.
+                                // Handle first/next block of VFP9 or FoxPro 2 memo data.
                                 else if (dbf._version === 0x30 || dbf._version === 0xf5) {
                                     // Memo header
                                     // 00 - 03: Next free block
