@@ -118,9 +118,10 @@ async function openDBF(path: string, opts?: OpenOptions): Promise<DBFFile> {
                 throw new Error(`Memo file not found for file '${path}'.`);
             }
         }
-        // Locate FoxPro9 memo file, if any. Version 0x30 may or may not have a memo file.
+
+        // Locate VFP9 or FoxPro 2 memo file, if any. Version 0x30 and 0xf5 may or may not have a memo file.
         // Conventions for memo extensions: .dbf => .fpt | .pjx => .pjt | .scx => .sct | .vcx => .vct | .frx => .frt ...
-        if (fileVersion === 0x30) {
+        if (fileVersion === 0x30 || fileVersion === 0xf5) {
             const dbExt = extname(path).toLowerCase();
             const memoExt = dbExt == '.dbf' ? '.fpt' : `.${dbExt.substr(1,2)}t`;
             for (const ext of [memoExt, memoExt.toUpperCase()]) {
@@ -279,15 +280,15 @@ async function readRecordsFromDBF(dbf: DBFFile, maxCount: number) {
 
         // If there is a memo file, open it and get the block size. Also get the total file size for overflow checking.
         // The code below assumes the block size is at offset 4 in the .dbt for dBase IV files, and defaults to 512 if
-        // all zeros. For dBase III files, the block size is always 512 bytes. For VFP9 the block size is at offset 6.
+        // all zeros. For dBase III files, the block size is always 512 bytes. For FoxPro the block size is at offset 6.
         // VFP9 memos can have a block size of 1, a special case where each block is sized to fit its value.
         let memoBlockSize = 0;
         let memoFileSize = 0;
         let memoBuf: Buffer | undefined;
         if (dbf._memoPath) {
             memoFd = await open(dbf._memoPath, 'r');
-            if (dbf._version === 0x30) {
-                // VFP9 
+            if (dbf._version === 0x30 || dbf._version === 0xf5) {
+                // VFP9 or FoxPro 2
                 await read(memoFd, buffer, 0, 2, 6);
                 memoBlockSize = buffer.readUInt16BE(0) || 512;
             }
@@ -475,8 +476,8 @@ async function readRecordsFromDBF(dbf: DBFFile, maxCount: number) {
                                     }
                                 }
 
-                                // Handle first/next block of FoxPro9 memo data.
-                                else if (dbf._version === 0x30) {
+                                // Handle first/next block of VFP9 or FoxPro 2 memo data.
+                                else if (dbf._version === 0x30 || dbf._version === 0xf5) {
                                     // Memo header
                                     // 00 - 03: Next free block
                                     // 04 - 05: Not used
