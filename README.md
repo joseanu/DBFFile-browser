@@ -2,6 +2,8 @@
 
 A TypeScript library to read `.dbf` files (dBase, FoxPro, etc.) in the browser or any modern JavaScript environment.
 
+> Nota: El código fuente principal vive en `src/`. El archivo `index.ts` en la raíz solo reexporta la API pública para mantener compatibilidad con consumidores legacy.
+
 This project is a *fork* of the popular [`DBFFile`](https://github.com/yortus/DBFFile) by @yortus. The main differences are:
 - **Read-Only**: All write functionality has been removed to reduce bundle size and complexity.
 - **Environment-Agnostic API**: All Node.js file system dependencies have been removed. The library now operates on an `ArrayBuffer`, making it universal.
