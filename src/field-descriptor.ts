@@ -36,7 +36,7 @@ export function validateFieldDescriptor(
     throw new Error(`Type '${type}' is not supported`);
 
   // size
-  const memoSize = fileVersion == 0x30 ? 4 : 10;
+  const memoSize = fileVersion === 0x30 || fileVersion === 0xf5 ? 4 : 10;
   if (typeof size !== "number") throw new Error("Size must be a number");
   if (size < 1) throw new Error("Field size is too small (minimum is 1)");
   if (type === "C" && size > 255)
