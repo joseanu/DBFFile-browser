@@ -80,13 +80,13 @@ describe("Reading a DBF file", () => {
         CODE: "1",
         NAME: "Assorted Petits Fours",
         WEIGHT: 5.51,
-        DESC: `Our Original assortment...a little taste of heaven for everyone.  Let us
-select a special assortment of our chocolate and pastel favorites for you.
-Each petit four is its own special hand decorated creation. Multi-layers of
-moist cake with combinations of specialty fillings create memorable cake
-confections. Varietes include; Luscious Lemon, Strawberry Hearts, White
-Chocolate, Mocha Bean, Roasted Almond, Triple Chocolate, Chocolate Hazelnut,
-Grand Orange, Plum Squares, Milk chocolate squares, and Raspberry Blanc.`,
+        DESC: 'Our Original assortment...a little taste of heaven for everyone.  Let us\r\n' +
+        'select a special assortment of our chocolate and pastel favorites for you.\r\n' +
+        'Each petit four is its own special hand decorated creation. Multi-layers of\r\n' +
+        'moist cake with combinations of specialty fillings create memorable cake\r\n' +
+        'confections. Varietes include; Luscious Lemon, Strawberry Hearts, White\r\n' +
+        'Chocolate, Mocha Bean, Roasted Almond, Triple Chocolate, Chocolate Hazelnut,\r\n' +
+        'Grand Orange, Plum Squares, Milk chocolate squares, and Raspberry Blanc.',
       },
       lastRecord: {
         ID: 94,
@@ -474,4 +474,5 @@ Grand Orange, Plum Squares, Milk chocolate squares, and Raspberry Blanc.`,
             expect(results[0].MEMO).toContain('Memo of record 1');
         });
     });
+  });
 });
