@@ -170,8 +170,10 @@ async function readRecordsFromDBF(dbf: DBFFile, maxCount: number) {
     // all zeros. For dBase III files, the block size is always 512 bytes.
     let memoBlockSize = 0;
     let memoView: Uint8Array | undefined;
+    const isFoxProMemoVersion = dbf._version === 0x30 || dbf._version === 0xf5;
+
     if (dbf._memoData) {
-      if (dbf._version === 0x30 || dbf._version === 0xf5) {
+      if (isFoxProMemoVersion) {
         // FoxPro9
         memoBlockSize =
           new DataView(dbf._memoData.slice(6, 8)).getUint16(0) || 512;
@@ -317,7 +319,7 @@ async function readRecordsFromDBF(dbf: DBFFile, maxCount: number) {
               break;
             case "M": {
               let blockIndex =
-                dbf._version === 0x30
+                isFoxProMemoVersion
                   ? new DataView(
                       buffer.buffer,
                       buffer.byteOffset + offset,
@@ -411,7 +413,7 @@ async function readRecordsFromDBF(dbf: DBFFile, maxCount: number) {
                 break;
               }
 
-              if (dbf._version === 0x30 || dbf._version === 0xf5) {
+              if (isFoxProMemoVersion) {
                 const memoType = readInt32(blockOffset, false);
                 if (memoType !== 1) {
                   value = "";

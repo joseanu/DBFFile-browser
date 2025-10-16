@@ -433,5 +433,45 @@ Grand Orange, Plum Squares, Milk chocolate squares, and Raspberry Blanc.`,
         expect(e.message).toContain(error);
       }
     });
-  });
+
+    describe('FoxPro memo files with version 0xf5', () => {
+        const fixture = 'vfp9_30_memo.dbf';
+        const memoFixture = 'vfp9_30_memo.fpt';
+
+        function mutateVersion(buffer: Buffer, version: number) {
+            const clone = Buffer.from(buffer);
+            clone[0] = version;
+            return clone;
+        }
+
+        it('readRecords: FoxPro memo DBF stores memo indices as binary values', async () => {
+            const dbfFilePath = path.join(__dirname, 'fixtures', fixture);
+            const memoFilePath = path.join(__dirname, 'fixtures', memoFixture);
+
+            const dbfBuffer = mutateVersion(await fs.readFile(dbfFilePath), 0xf5);
+            const memoBuffer = await fs.readFile(memoFilePath);
+
+            const dbf = await DBFFile.open(toArrayBuffer(dbfBuffer), toArrayBuffer(memoBuffer));
+            const records = await dbf.readRecords();
+
+            expect(records[0].MEMO).toContain('Memo of record 1');
+        });
+
+        it('asyncIterator: FoxPro memo DBF stores memo indices as binary values', async () => {
+            const dbfFilePath = path.join(__dirname, 'fixtures', fixture);
+            const memoFilePath = path.join(__dirname, 'fixtures', memoFixture);
+
+            const dbfBuffer = mutateVersion(await fs.readFile(dbfFilePath), 0xf5);
+            const memoBuffer = await fs.readFile(memoFilePath);
+
+            const dbf = await DBFFile.open(toArrayBuffer(dbfBuffer), toArrayBuffer(memoBuffer));
+
+            const results: Array<Record<string, unknown>> = [];
+            for await (const record of dbf) {
+                results.push(record);
+            }
+
+            expect(results[0].MEMO).toContain('Memo of record 1');
+        });
+    });
 });
