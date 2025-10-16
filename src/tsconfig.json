@@ -1,16 +1,16 @@
 {
-    "compilerOptions": {
-        "target": "es2018",
-        "module": "commonjs",
-        "removeComments": false,
-        "sourceMap": true,
-        "declaration": true,
-        "outDir": "../dist",
-        "lib": ["es2018"],
+  "compilerOptions": {
+    "target": "es2018",
+    "module": "commonjs",
+    "removeComments": false,
+    "sourceMap": true,
+    "declaration": true,
+    "outDir": "../dist",
+    "lib": ["es2018"],
 
-        "strict": true,
-        "noUnusedLocals": true,
-        "noUnusedParameters": true,
-        "noFallthroughCasesInSwitch": true,
-    }
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true
+  }
 }
