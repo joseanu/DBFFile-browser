@@ -1,16 +1,17 @@
 {
-    "compilerOptions": {
-        "target": "es2018",
-        "module": "commonjs",
-        "removeComments": false,
-        "sourceMap": true,
-        "declaration": true,
-        "outDir": "../dist",
-        "lib": ["es2018"],
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "esnext",
+    "moduleResolution": "node",
+    "removeComments": false,
+    "sourceMap": true,
+    "declaration": true,
+    "outDir": "../dist",
+    "lib": ["esnext", "dom"],
 
-        "strict": true,
-        "noUnusedLocals": true,
-        "noUnusedParameters": true,
-        "noFallthroughCasesInSwitch": true,
-    }
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true
+  }
 }
