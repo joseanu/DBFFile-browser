@@ -1,12 +1,13 @@
 {
   "compilerOptions": {
-    "target": "es2018",
-    "module": "commonjs",
+    "target": "esnext",
+    "module": "esnext",
+    "moduleResolution": "node",
     "removeComments": false,
     "sourceMap": true,
     "declaration": true,
     "outDir": "../dist",
-    "lib": ["es2018"],
+    "lib": ["esnext", "dom"],
 
     "strict": true,
     "noUnusedLocals": true,

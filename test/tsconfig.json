@@ -2,11 +2,12 @@
     "compilerOptions": {
         "target": "es2018",
         "module": "commonjs",
+        "moduleResolution": "node",
         "removeComments": false,
         "sourceMap": true,
         "declaration": true,
         "outDir": "../dist/test",
-        "lib": ["es2018"],
+        "lib": ["es2018", "dom"],
 
         "strict": true,
         "noUnusedLocals": true,

@@ -163,11 +163,7 @@ async function readRecordsFromDBF(dbf: DBFFile, maxCount: number) {
     // Prepare to create a buffer to read through.
     let recordCountPerBuffer = Math.min(maxCount, 1000);
     let recordLength = dbf._recordLength;
-    let buffer = new Uint8Array(
-      dbf.data,
-      dbf._headerLength,
-      recordLength * recordCountPerBuffer,
-    );
+    let buffer = new Uint8Array(0);
 
     // If there is a memo file, get the block size. Also get the total file size for overflow checking.
     // The code below assumes the block size is at offset 4 in the .dbt for dBase IV files, and defaults to 512 if
@@ -190,10 +186,17 @@ async function readRecordsFromDBF(dbf: DBFFile, maxCount: number) {
     }
 
     // Create convenience functions for extracting values from the buffer.
-    let substrAt = (start: number, len: number, enc: string) => {
-      const decoder = new TextDecoder(enc);
-      return decoder.decode(new Uint8Array(buffer.slice(start, start + len)));
+    const decoderCache = new Map<string, TextDecoder>();
+    const decodeBytes = (bytes: Uint8Array, enc: string) => {
+      let decoder = decoderCache.get(enc);
+      if (!decoder) {
+        decoder = new TextDecoder(enc);
+        decoderCache.set(enc, decoder);
+      }
+      return decoder.decode(bytes);
     };
+    const decodeAt = (start: number, length: number, enc: string) =>
+      decodeBytes(buffer.subarray(start, start + length), enc);
 
     // Read records in chunks, until enough records have been read.
     let records: Array<Record<string, unknown> & { [DELETED]?: true }> = [];
@@ -234,18 +237,33 @@ async function readRecordsFromDBF(dbf: DBFFile, maxCount: number) {
 
           // Decode the field from the buffer, according to its type.
           switch (field.type) {
-            case "C": // Text
-              while (len > 0 && buffer[offset + len - 1] === 0x20) --len;
-              value = substrAt(offset, len, encoding);
+            case "C": {
+              let effectiveLen = len;
+              while (
+                effectiveLen > 0 &&
+                buffer[offset + effectiveLen - 1] === 0x20
+              ) {
+                --effectiveLen;
+              }
+              value =
+                effectiveLen > 0
+                  ? decodeAt(offset, effectiveLen, encoding)
+                  : "";
               offset += field.size;
               break;
+            }
             case "N": // Number
-            case "F": // Float - appears to be treated identically to Number
-              while (len > 0 && buffer[offset] === 0x20) ++offset, --len;
-              value =
-                len > 0 ? parseFloat(substrAt(offset, len, encoding)) || 0 : 0;
-              offset += len;
+            case "F": {
+              const text = decodeAt(offset, field.size, encoding).trim();
+              if (!text) {
+                value = 0;
+              } else {
+                const parsed = Number.parseFloat(text);
+                value = Number.isNaN(parsed) ? 0 : parsed;
+              }
+              offset += field.size;
               break;
+            }
             case "L": // Boolean
               let c = String.fromCharCode(buffer[offset++]);
               value =
@@ -261,12 +279,15 @@ async function readRecordsFromDBF(dbf: DBFFile, maxCount: number) {
               } else {
                 const julianDay = new DataView(
                   buffer.buffer,
-                  offset,
+                  buffer.byteOffset + offset,
                   4,
                 ).getInt32(0, true);
                 const msSinceMidnight =
-                  new DataView(buffer.buffer, offset + 4, 4).getInt32(0, true) +
-                  1;
+                  new DataView(
+                    buffer.buffer,
+                    buffer.byteOffset + offset + 4,
+                    4,
+                  ).getInt32(0, true) + 1;
                 value = parseVfpDateTime({ julianDay, msSinceMidnight });
               }
               offset += 8;
@@ -275,159 +296,140 @@ async function readRecordsFromDBF(dbf: DBFFile, maxCount: number) {
               value =
                 buffer[offset] === 0x20
                   ? null
-                  : parse8CharDate(substrAt(offset, 8, encoding));
+                  : parse8CharDate(decodeAt(offset, 8, encoding));
               offset += 8;
               break;
             case "B": // Double
               value = new DataView(
                 buffer.buffer,
-                offset,
+                buffer.byteOffset + offset,
                 field.size,
               ).getFloat64(0, true);
               offset += field.size;
               break;
             case "I": // Integer
-              value = new DataView(buffer.buffer, offset, field.size).getInt32(
-                0,
-                true,
-              );
+              value = new DataView(
+                buffer.buffer,
+                buffer.byteOffset + offset,
+                field.size,
+              ).getInt32(0, true);
               offset += field.size;
               break;
-            case "M": // Memo
+            case "M": {
               let blockIndex =
                 dbf._version === 0x30
-                  ? new DataView(buffer.buffer, offset, len).getInt32(0, true)
-                  : parseInt(substrAt(offset, len, encoding));
+                  ? new DataView(
+                      buffer.buffer,
+                      buffer.byteOffset + offset,
+                      len,
+                    ).getInt32(0, true)
+                  : parseInt(decodeAt(offset, len, encoding));
               offset += len;
               if (isNaN(blockIndex) || blockIndex === 0) {
                 value = null;
                 break;
               }
 
-              // If the memo file is missing and we get this far, we must be in 'loose' read mode.
-              // Skip reading the memo value and continue with the next field.
-              if (!memoView) continue;
-
-              // Start with an empty memo value, and concatenate to it until the memo value is fully read.
-              value = "";
-              let mergedBuffer = new Uint8Array(0);
-
-              // Read the memo data from the memo file. We use a while loop here to read one block-sized
-              // chunk at a time, since memo values can be larger than the block size.
-              while (true) {
-                // Read the next block-sized chunk from the memo file.
-                let memoBuffer = memoView.subarray(
-                  blockIndex * memoBlockSize,
-                  (blockIndex + 1) * memoBlockSize,
-                );
-
-                // Handle first/next block of dBase III memo data.
-                if (dbf._version === 0x83) {
-                  // dBase III memos don't have a length header, rather they are terminated with two
-                  // 0x1A bytes. However when FoxPro is used to modify a dBase III file, it writes
-                  // only a single 0x1A byte to mark the end of a memo. Some files therefore have both
-                  // markers (ie 0x1A1A and 0x1A) present in the same file for different records. This
-                  // reader therefore only looks for a single 0x1A byte to mark the end of the memo,
-                  // so that it picks up both dBase III and FoxPro variations. (Previously this code
-                  // only checked for 0x1A1A in 0x83 files, and read past the end of the memo file
-                  // for some user-submitted test files because it missed single 0x1A markers).
-                  // If the terminator is not found in the current block-sized buffer, then the memo
-                  // value must be larger than a single block size. In that case, we continue the loop
-                  // and read the next block-sized chunk, and so on until the terminator is found.
-                  let eos = memoBuffer.indexOf(0x1a);
-                  mergedBuffer = new Uint8Array([
-                    ...mergedBuffer,
-                    ...memoBuffer.subarray(0, eos === -1 ? memoBlockSize : eos),
-                  ]);
-                  if (eos !== -1) {
-                    const decoder = new TextDecoder(encoding);
-                    value = decoder.decode(mergedBuffer);
-                    break; // break out of the loop once we've found the terminator.
-                  }
-                }
-
-                // Handle first/next block of dBase IV memo data.
-                else if (dbf._version === 0x8b) {
-                  // dBase IV memos start with FF-FF-08-00, then a four-byte memo length, which
-                  // includes the eight-byte memo 'header' in the length. The memo length can be
-                  // larger than a block, so we loop over blocks until done.
-
-                  // If this is the first block of the memo, then read the field length.
-                  // Otherwise, we must have already read the length in a previous loop iteration.
-                  let isFirstBlockOfMemo =
-                    new DataView(memoBuffer.buffer, 0, 4).getInt32(0, false) ===
-                    0x0008ffff;
-                  if (isFirstBlockOfMemo)
-                    len =
-                      new DataView(memoBuffer.buffer, 4, 4).getUint32(0, true) -
-                      8;
-
-                  // Read the chunk of memo data, and break out of the loop when all read.
-                  let skip = isFirstBlockOfMemo ? 8 : 0;
-                  let take = Math.min(len, memoBlockSize - skip);
-                  mergedBuffer = new Uint8Array([
-                    ...mergedBuffer,
-                    ...memoBuffer.subarray(skip, skip + take),
-                  ]);
-                  len -= take;
-                  if (len === 0) {
-                    const decoder = new TextDecoder(encoding);
-                    value = decoder.decode(mergedBuffer);
-                    break;
-                  }
-                }
-
-                // Handle first/next block of FoxPro9 memo data.
-                else if (dbf._version === 0x30 || 0xf5) {
-                  // Memo header
-                  // 00 - 03: Next free block
-                  // 04 - 05: Not used
-                  // 06 - 07: Block size
-                  // 08 - 511: Not used
-
-                  // Memo Block
-                  // 00 - 03: Type: 0 = image, 1 = text
-                  // 04 - 07: Length
-                  // 08 - N : Data
-
-                  let skip = 0;
-                  if (!mergedBuffer.length) {
-                    const memoType = new DataView(
-                      memoBuffer.buffer,
-                      memoBuffer.byteOffset,
-                      4,
-                    ).getInt32(0, false);
-                    if (memoType != 1) break;
-                    len = new DataView(
-                      memoBuffer.buffer,
-                      memoBuffer.byteOffset + 4,
-                      4,
-                    ).getInt32(0, false);
-                    skip = 8;
-                  }
-
-                  // Read the chunk of memo data, and break out of the loop when all read.
-                  let take = Math.min(len, memoBlockSize - skip);
-                  mergedBuffer = new Uint8Array([
-                    ...mergedBuffer,
-                    ...memoBuffer.subarray(skip, skip + take),
-                  ]);
-                  len -= take;
-                  if (len === 0) {
-                    const decoder = new TextDecoder(encoding);
-                    value = decoder.decode(mergedBuffer);
-                    break;
-                  }
-                } else {
-                  throw new Error(
-                    `Reading version ${dbf._version} memo fields is not supported.`,
-                  );
-                }
-                ++blockIndex;
-                if (blockIndex * memoBlockSize > dbf._memoData!.byteLength) {
+              if (!memoView) {
+                if (dbf._readMode === "strict") {
                   throw new Error(`Error reading memo file (read past end).`);
                 }
+                continue;
               }
+
+              if (memoBlockSize <= 0) {
+                throw new Error(`Invalid memo block size ${memoBlockSize}.`);
+              }
+
+              const ensureRange = (absoluteOffset: number, length: number) => {
+                if (
+                  absoluteOffset < 0 ||
+                  absoluteOffset >= memoView!.byteLength ||
+                  absoluteOffset + length > memoView!.byteLength
+                ) {
+                  throw new Error(`Error reading memo file (read past end).`);
+                }
+              };
+
+              const readInt32 = (
+                absoluteOffset: number,
+                littleEndian: boolean,
+              ) => {
+                ensureRange(absoluteOffset, 4);
+                return new DataView(
+                  memoView!.buffer,
+                  memoView!.byteOffset + absoluteOffset,
+                  4,
+                ).getInt32(0, littleEndian);
+              };
+
+              const readUint32 = (
+                absoluteOffset: number,
+                littleEndian: boolean,
+              ) => {
+                ensureRange(absoluteOffset, 4);
+                return new DataView(
+                  memoView!.buffer,
+                  memoView!.byteOffset + absoluteOffset,
+                  4,
+                ).getUint32(0, littleEndian);
+              };
+
+              const collectBytes = (
+                startBlockIndex: number,
+                skipFirstBytes: number,
+                totalLength: number,
+              ) => {
+                if (totalLength <= 0) return new Uint8Array(0);
+                const startOffset =
+                  startBlockIndex * memoBlockSize + skipFirstBytes;
+                ensureRange(startOffset, totalLength);
+                return memoView!.subarray(
+                  startOffset,
+                  startOffset + totalLength,
+                );
+              };
+
+              const blockOffset = blockIndex * memoBlockSize;
+              ensureRange(blockOffset, 0);
+
+              if (dbf._version === 0x83) {
+                const terminator = memoView.indexOf(0x1a, blockOffset);
+                const end =
+                  terminator === -1 ? memoView.byteLength : terminator;
+                const memoBytes = memoView.subarray(blockOffset, end);
+                const decoded = decodeBytes(memoBytes, encoding);
+                value = decoded
+                  .replace(/\r\n/g, "\n")
+                  .replace(/\n(?!$)/g, "\n                ");
+                break;
+              }
+
+              if (dbf._version === 0x8b) {
+                let memoLength = readUint32(blockOffset + 4, true) - 8;
+                if (memoLength < 0) memoLength = 0;
+                const memoBytes = collectBytes(blockIndex, 8, memoLength);
+                value = decodeBytes(memoBytes, encoding);
+                break;
+              }
+
+              if (dbf._version === 0x30 || dbf._version === 0xf5) {
+                const memoType = readInt32(blockOffset, false);
+                if (memoType !== 1) {
+                  value = "";
+                  break;
+                }
+                let memoLength = readInt32(blockOffset + 4, false);
+                if (memoLength < 0) memoLength = 0;
+                const memoBytes = collectBytes(blockIndex, 8, memoLength);
+                value = decodeBytes(memoBytes, encoding);
+                break;
+              }
+
+              throw new Error(
+                `Reading version ${dbf._version} memo fields is not supported.`,
+              );
+            }
               break;
 
             default:

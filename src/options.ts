@@ -84,6 +84,9 @@ export function normaliseCreateOptions(
 // Helper function for validating encodings.
 function assertValidEncoding(encoding: unknown): asserts encoding is Encoding {
   if (typeof encoding === "string") {
+    if (UNSUPPORTED_ENCODINGS.has(encoding.toLowerCase())) {
+      throw new Error(`Unsupported character encoding '${encoding}'`);
+    }
     try {
       new TextDecoder(encoding);
     } catch (e) {
@@ -95,6 +98,17 @@ function assertValidEncoding(encoding: unknown): asserts encoding is Encoding {
       throw new Error(`No default encoding specified`);
     }
     for (let key of Object.keys(encodingObject)) {
+      const encodingName = encodingObject[key];
+      if (UNSUPPORTED_ENCODINGS.has(encodingName.toLowerCase())) {
+        if (key === "default") {
+          throw new Error(
+            `Unsupported character encoding '${encodingName}'`,
+          );
+        }
+        throw new Error(
+          `Unsupported character encoding '${encodingName}' for field '${key}'`,
+        );
+      }
       try {
         new TextDecoder(encodingObject[key]);
       } catch (e) {
@@ -107,3 +121,6 @@ function assertValidEncoding(encoding: unknown): asserts encoding is Encoding {
     throw new Error(`Invalid encoding value ${encoding}`);
   }
 }
+const UNSUPPORTED_ENCODINGS = new Set(
+  ["gb2312"].map((enc) => enc.toLowerCase()),
+);
