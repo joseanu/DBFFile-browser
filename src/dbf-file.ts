@@ -171,7 +171,7 @@ async function readRecordsFromDBF(dbf: DBFFile, maxCount: number) {
     let memoBlockSize = 0;
     let memoView: Uint8Array | undefined;
     if (dbf._memoData) {
-      if (dbf._version === 0x30 || 0xf5) {
+      if (dbf._version === 0x30 || dbf._version === 0xf5) {
         // FoxPro9
         memoBlockSize =
           new DataView(dbf._memoData.slice(6, 8)).getUint16(0) || 512;
