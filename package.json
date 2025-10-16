@@ -7,7 +7,6 @@
   "scripts": {
     "build": "tsc -p src && tsc -p test && ncp test/fixtures dist/test/fixtures",
     "build:watch": "tsc -w -p src & (ncp test/fixtures dist/test/fixtures && tsc -w -p test)",
-    "clean": "rimraf dist/",
     "test": "jest"
   },
   "repository": {

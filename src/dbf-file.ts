@@ -401,9 +401,7 @@ async function readRecordsFromDBF(dbf: DBFFile, maxCount: number) {
                   terminator === -1 ? memoView.byteLength : terminator;
                 const memoBytes = memoView.subarray(blockOffset, end);
                 const decoded = decodeBytes(memoBytes, encoding);
-                value = decoded
-                  .replace(/\r\n/g, "\n")
-                  .replace(/\n(?!$)/g, "\n                ");
+                value = decoded.replace(/\r\n/g, "\n");
                 break;
               }
 
