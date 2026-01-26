@@ -158,15 +158,28 @@ async function openDBF(
 }
 
 // Private implementation of DBFFile#readRecords
-async function readRecordsFromDBF(dbf: DBFFile, maxCount: number) {
-  try {
-    let recordCountPerBuffer = Math.min(maxCount, 1000);
-    let recordLength = dbf._recordLength;
-    let buffer = new Uint8Array(
-      dbf.data,
-      dbf._headerLength,
-      recordLength * recordCountPerBuffer,
-    );
+	async function readRecordsFromDBF(dbf: DBFFile, maxCount: number) {
+	  try {
+	    let recordCountPerBuffer = Math.min(maxCount, 1000);
+	    let recordLength = dbf._recordLength;
+	    // Do not pre-allocate a view that reads past the end of the file.
+	    // (Common when maxCount > remaining records, e.g. recordCount=1 and maxCount=3.)
+	    const availableBytes = Math.max(0, dbf.data.byteLength - dbf._headerLength);
+	    const remainingRecords = Math.max(0, dbf.recordCount - dbf._recordsRead);
+	    const initialRecordCount =
+	      recordLength > 0
+	        ? Math.min(
+	            recordCountPerBuffer,
+	            remainingRecords,
+	            Math.floor(availableBytes / recordLength),
+	          )
+	        : 0;
+
+	    let buffer = new Uint8Array(
+	      dbf.data,
+	      dbf._headerLength,
+	      recordLength > 0 ? recordLength * initialRecordCount : 0,
+	    );
 
     let memoBlockSize = 0;
     let memoView: Uint8Array | undefined;
