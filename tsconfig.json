@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "target": "ES2017",
+    "module": "esnext",
+    "moduleResolution": "node",
+    "strict": true,
+    "strictNullChecks": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "noEmit": false,
+    "incremental": false,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "plugins": [],
+    "paths": {},
+    "allowJs": true,
+    "types": ["node"],
+    "ignoreDeprecations": "6.0",
+    "forceConsistentCasingInFileNames": true
+  }
+}

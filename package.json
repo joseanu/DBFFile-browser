@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "typings": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc -p src && node scripts/fix-esm-specifiers.js && ncp test/fixtures dist/test/fixtures",
+    "build": "tsc -p src && ncp test/fixtures dist/test/fixtures",
     "build:watch": "tsc -w -p src & (ncp test/fixtures dist/test/fixtures && tsc -w -p test)",
     "test": "jest"
   },
