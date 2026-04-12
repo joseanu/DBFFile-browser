@@ -1,6 +1,7 @@
 {
     "compilerOptions": {
         "target": "es2018",
+        "rootDir": "..",
         "module": "commonjs",
         "moduleResolution": "node",
         "removeComments": false,
@@ -8,6 +9,7 @@
         "declaration": true,
         "outDir": "../dist/test",
         "lib": ["es2018", "dom"],
+        "ignoreDeprecations": "6.0",
 
         "strict": true,
         "noUnusedLocals": true,

@@ -8,6 +8,7 @@
     "declaration": true,
     "outDir": "../dist",
     "lib": ["esnext", "dom"],
+    "ignoreDeprecations": "6.0",
 
     "strict": true,
     "noUnusedLocals": true,
