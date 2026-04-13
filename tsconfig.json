@@ -2,8 +2,8 @@
   "compilerOptions": {
     "lib": ["dom", "dom.iterable", "esnext"],
     "target": "ES2017",
-    "module": "esnext",
-    "moduleResolution": "node",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
     "strict": true,
     "strictNullChecks": true,
     "esModuleInterop": true,
@@ -15,7 +15,7 @@
     "jsx": "preserve",
     "plugins": [],
     "paths": {},
-    "allowJs": true,
+    "allowJs": false,
     "types": ["node"],
     "ignoreDeprecations": "6.0",
     "forceConsistentCasingInFileNames": true
