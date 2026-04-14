@@ -2,8 +2,8 @@
   "compilerOptions": {
     "lib": ["dom", "dom.iterable", "esnext"],
     "target": "ES2017",
-    "module": "nodenext",
-    "moduleResolution": "nodenext",
+    "module": "esnext",
+    "moduleResolution": "bundler",
     "strict": true,
     "strictNullChecks": true,
     "esModuleInterop": true,

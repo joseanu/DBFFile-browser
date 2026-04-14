@@ -1,7 +1,7 @@
-import { FieldDescriptor, validateFieldDescriptor } from "./field-descriptor.js";
-import { isValidFileVersion } from "./file-version.js";
-import { Encoding, normaliseOpenOptions, OpenOptions } from "./options.js";
-import { createDate, parseVfpDateTime, parse8CharDate } from "./utils.js";
+import { FieldDescriptor, validateFieldDescriptor } from "./field-descriptor";
+import { isValidFileVersion } from "./file-version";
+import { Encoding, normaliseOpenOptions, OpenOptions } from "./options";
+import { createDate, parseVfpDateTime, parse8CharDate } from "./utils";
 
 /** Represents a DBF file. */
 export class DBFFile {

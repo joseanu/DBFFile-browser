@@ -1,4 +1,4 @@
-import { FileVersion, isValidFileVersion } from "./file-version.js";
+import { FileVersion, isValidFileVersion } from "./file-version";
 
 /** Options for opening a DBF file. */
 export interface OpenOptions {

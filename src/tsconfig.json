@@ -1,7 +1,7 @@
 {
   "extends": "../tsconfig.json",
   "compilerOptions": {
-    "module": "nodenext",
+    "module": "esnext",
     "removeComments": false,
     "sourceMap": true,
     "declaration": true,
