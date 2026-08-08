@@ -15,6 +15,11 @@ export interface OpenOptions {
     encoding?: Encoding;
     /** Indicates whether deleted records should be included in results when reading records. Defaults to false. */
     includeDeletedRecords?: boolean;
+    /**
+     * Names of memo fields whose contents must be returned as raw bytes (`Uint8Array`) instead of decoded text.
+     * Memos whose FPT block type is not 1 are always returned as raw bytes, regardless of this list.
+     */
+    binaryMemoFields?: string[];
 }
 /** Options for creating a DBF file. */
 export interface CreateOptions {

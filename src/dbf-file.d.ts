@@ -31,6 +31,7 @@ export declare class DBFFile {
     _readMode: "strict" | "loose";
     _encoding: Encoding;
     _includeDeletedRecords: boolean;
+    _binaryMemoFields: Set<string>;
     _recordsRead: number;
     _headerLength: number;
     _recordLength: number;

@@ -18,6 +18,17 @@ export interface OpenOptions {
 
   /** Indicates whether deleted records should be included in results when reading records. Defaults to false. */
   includeDeletedRecords?: boolean;
+
+  /**
+   * Names of memo fields whose contents must be returned as raw bytes (`Uint8Array`) instead of decoded text.
+   *
+   * Some producers store binary payloads — packed structs, numeric arrays — inside a memo field that the FPT header
+   * still declares as type 1 (text). The file itself carries no way to tell those apart from real text, so decoding
+   * is lossy and irreversible. Listing the field here preserves the bytes for callers that know the layout.
+   *
+   * Memos whose FPT block type is not 1 (picture, object) are always returned as raw bytes, regardless of this list.
+   */
+  binaryMemoFields?: string[];
 }
 
 /** Options for creating a DBF file. */
@@ -60,8 +71,17 @@ export function normaliseOpenOptions(
     );
   }
 
+  // Validate `binaryMemoFields`.
+  let binaryMemoFields = options?.binaryMemoFields ?? [];
+  if (
+    !Array.isArray(binaryMemoFields) ||
+    binaryMemoFields.some((name) => typeof name !== "string")
+  ) {
+    throw new Error(`Invalid 'binaryMemoFields' value ${binaryMemoFields}`);
+  }
+
   // Return a new normalised options object.
-  return { encoding, readMode, includeDeletedRecords };
+  return { encoding, readMode, includeDeletedRecords, binaryMemoFields };
 }
 
 /** Validates the given CreateOptions and substitutes defaults for missing properties. Returns a new options object. */

@@ -50,6 +50,9 @@ export class DBFFile {
   _readMode = "strict" as "strict" | "loose";
   _encoding = "" as Encoding;
   _includeDeletedRecords = false;
+
+  /** @internal Memo fields whose bytes must survive undecoded. */
+  _binaryMemoFields = new Set<string>();
   _recordsRead = 0;
   _headerLength = 0;
   _recordLength = 0;
@@ -149,6 +152,7 @@ async function openDBF(
   result._readMode = options.readMode;
   result._encoding = options.encoding;
   result._includeDeletedRecords = options.includeDeletedRecords;
+  result._binaryMemoFields = new Set(options.binaryMemoFields);
   result._recordsRead = 0;
   result._headerLength = headerLength;
   result._recordLength = recordLength;
@@ -306,6 +310,11 @@ async function openDBF(
               value = '';
               ;
               let mergedBuffer = new Uint8Array(0);
+              // Un memo VFP no siempre es texto: el tipo 1 lo es, el 0 (picture)
+              // y el 2 (object) son binarios y se usan para guardar structs y
+              // arreglos numéricos. Decodificarlos como texto los destruye, así
+              // que se devuelven como bytes y quien los pidió los interpreta.
+              let memoIsBinary = dbf._binaryMemoFields.has(field.name);
 
               while (true) {
                 if (blockIndex * memoBlockSize >= memoView!.byteLength) {
@@ -360,13 +369,13 @@ async function openDBF(
                       memoBuffer.byteOffset,
                       4,
                     ).getInt32(0, false);
-                    if (memoType != 1) break;
+                    memoIsBinary = memoIsBinary || memoType !== 1;
                     len = new DataView(
                       memoBuffer.buffer,
                       memoBuffer.byteOffset + 4,
                       4,
                     ).getInt32(0, false);
-                                        skip = 8;
+                    skip = 8;
                   }
 
                   let take = Math.min(len, memoBlockSize - skip);
@@ -376,8 +385,12 @@ async function openDBF(
                   ]);
                   len -= take;
                   if (len === 0) {
-                    const decoder = new TextDecoder(encoding);
-                    value = decoder.decode(mergedBuffer);
+                    if (memoIsBinary) {
+                      value = mergedBuffer;
+                    } else {
+                      const decoder = new TextDecoder(encoding);
+                      value = decoder.decode(mergedBuffer);
+                    }
                     break;
                   }
                 } else {
